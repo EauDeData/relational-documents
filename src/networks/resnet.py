@@ -223,6 +223,48 @@ class ResNet(nn.Module):
 
         return fm, embeeding, conv5_b
 
+class LatentWordEncoder(torch.nn.Module):
+    def __init__(self, word_height = 32, word_patch_size = 16, latent_dim = 64, final_dim = 256):
+        super().__init__()
+
+        self.word_tokenizer = torch.nn.Conv2d(1, 1,
+                                              (1, word_patch_size), stride=(1, word_patch_size))
+        self.to_latent = torch.nn.Sequential(
+            torch.nn.ReLU(),
+            torch.nn.Linear(word_height, latent_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(latent_dim, latent_dim),
+            torch.nn.ReLU()
+        )
+        self.lstm = torch.nn.LSTM(latent_dim, latent_dim, num_layers=1, batch_first=True, bidirectional=False)
+        self.to_repr = torch.nn.Linear(latent_dim, final_dim)
+
+    def forward(self, local_views):
+        # Words with shape: (BS, SEQ, 1, HEIGHT, WIDTH)
+        bs, seq, channels, height, width = local_views.shape
+
+        batched_views = local_views.view(bs*seq, 1, height, width)
+
+        # NTOKENS = WIDTH // word_patch_size
+        # Tokens with shape (BS * SEQ, 1, HEIGHT, NTOKENS)
+        tokens = self.word_tokenizer(batched_views)
+
+        # Tokens with shape (BS * SEQ, NTOKENS, latent_dim)
+        latent_tokens = self.to_latent(tokens.transpose(3, 2).squeeze())
+
+
+        lstm_output, _ = self.lstm(latent_tokens)
+
+        # TODO: Should we take the last layer only?
+        lstm_final_output = lstm_output[:, -1, :]  # Shape: (batch_size * seq, latent_dim)
+
+        latent_word_representation = self.to_repr(lstm_final_output)
+
+        return latent_word_representation.view(bs, seq, -1)
+
+
+
+
 
 def _resnet(arch, block, layers, pretrained, pth_path, **kwargs):
     model = ResNet(block, layers, **kwargs)

@@ -11,13 +11,13 @@ from tqdm import tqdm
 
 from networks.ast import AST
 from networks.relation_net import RelationNet
-from utils import constants
+from utils_jeta import constants
 
 
 class RelationalProxies(nn.Module):
-    def __init__(self, backbone, num_classes, logdir):
+    def __init__(self, backbone, logdir):
         super(RelationalProxies, self).__init__()
-        self.num_classes = num_classes
+        # self.num_classes = num_classes
         self.feature_dim = constants.FEATURE_DIM
         self.lr = constants.INIT_LR
 
@@ -32,23 +32,26 @@ class RelationalProxies(nn.Module):
 
         self.scheduler = MultiStepLR(self.optimizer, milestones=constants.LR_MILESTONES, gamma=constants.LR_DECAY_RATE)
         self.criterion = nn.CrossEntropyLoss()
-        self.proxy_criterion = ProxyAnchorLoss(num_classes=num_classes, embedding_size=self.feature_dim)
+        # self.proxy_criterion = ProxyAnchorLoss(num_classes=num_classes, embedding_size=self.feature_dim)
+        self.metric_learning_criterion = None # TODO: Aquí afegir el metric learning amb el text encoder
 
         self.writer = SummaryWriter(logdir)
 
     def train_one_epoch(self, trainloader, epoch, save_path):
         print('Training %d epoch' % epoch)
         self.train()
-        device = self.proxy_criterion.proxies.device  # hacky, but keeps the arg list clean
+        device = self.backbone.DEVICE  # hacky, but keeps the arg list clean
         epoch_state = {'loss': 0, 'correct': 0}
         for i, data in enumerate(tqdm(trainloader)):
-            im, labels = data
-            im, labels = im.to(device), labels.to(device)
+            image, crops, query = data
+            image, crops, query = image.to(device), crops.to(device), query.to(device)
 
             self.optimizer.zero_grad()
 
-            global_repr, summary_repr, relation_repr = self.compute_reprs(im)
-            loss = self.proxy_criterion(relation_repr, labels)
+            global_repr, summary_repr, relation_repr = self.compute_reprs(image, crops, query)
+            # Whatever
+            # TODO: Triplet loss with mining so we don't have to create negatives
+            loss = self.metric_learning_criterion(relation_repr, labels)
 
             loss.backward()
             self.optimizer.step()
@@ -63,22 +66,13 @@ class RelationalProxies(nn.Module):
         if epoch % constants.TEST_EVERY == 0:
             print('Testing %d epoch' % epoch)
             self.eval()
-            device = self.proxy_criterion.proxies.device  # hacky, but keeps the arg list clean
-            epoch_state = {'loss': 0, 'correct': 0}
-            for i, data in enumerate(tqdm(testloader)):
-                im, labels = data
-                im, labels = im.to(device), labels.to(device)
 
-                global_repr, summary_repr, relation_repr = self.compute_reprs(im)
-                epoch_state = self.predict(global_repr, summary_repr, relation_repr, labels, epoch_state)
+            # TODO: Aquí fer un test de retrieval com deu mana
 
-                loss = self.proxy_criterion(relation_repr, labels)
-                epoch_state['loss'] += loss.item()
+            self.post_epoch('Test', epoch, None, len(testloader.dataset), None)
 
-            self.post_epoch('Test', epoch, epoch_state, len(testloader.dataset), None)
-
-    def compute_reprs(self, im):
-        global_embed, local_embeds = self.backbone(im)
+    def compute_reprs(self, image, crops, query):
+        global_embed, local_embeds, query_embedding = self.backbone(image, crops, query)
 
         summary_repr = self.aggregator(local_embeds)
         relation_repr = self.relation_net(global_embed, summary_repr)
@@ -87,13 +81,8 @@ class RelationalProxies(nn.Module):
 
     @torch.no_grad()
     def predict(self, global_repr, summary_repr, relation_repr, labels, epoch_state):
-        global_logits = F.linear(global_repr, self.proxy_criterion.proxies)
-        summary_logits = F.linear(summary_repr, self.proxy_criterion.proxies)
-        relation_logits = F.linear(relation_repr, self.proxy_criterion.proxies)
 
-        combined_logits = (global_logits / self.wtFrac_global) + (summary_logits / self.wtFrac_local) + (relation_logits / self.wtFrac_relational)
-        pred = combined_logits.max(1, keepdim=True)[1]
-        epoch_state['correct'] += pred.eq(labels.view_as(pred)).sum().item()
+        # TODO: Aquí fer un predict de retrieval com deu mana
 
         return epoch_state
 

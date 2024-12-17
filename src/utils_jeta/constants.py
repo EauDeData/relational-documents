@@ -15,7 +15,7 @@ LR_DECAY_RATE = 0.1
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 STRIDE = 32
-FEATURE_DIM = 2048
+FEATURE_DIM = 256
 IMAGE_SIZE = 448
 
 # Path to the global-view extractor model, which also serves as a pretrained backbone for the disjoint encoder.

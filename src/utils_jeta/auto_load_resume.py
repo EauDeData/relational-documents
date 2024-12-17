@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 import torch
 
-from utils.constants import INIT_LR
+from utils_jeta.constants import INIT_LR
 
 
 def auto_load_resume(model, path, status):
