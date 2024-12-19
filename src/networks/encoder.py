@@ -81,13 +81,12 @@ class DisjointEncoder(nn.Module):
         self.DEVICE = device
 
     def forward(self, global_view, local_views, query):
-        print(f"G: {global_view.shape}, L: {local_views.shape}, Q: {query.shape}")
+
         local_embeds = self.local_extractor(local_views)
+
         global_fm, global_embed_pre, _ = self.extractor(global_view.detach())
         global_embed = self.to_low_dim(global_embed_pre)
 
-        print(f"Gembs: {global_embed.shape}, Lembs: {local_embeds.shape}")
-        exit()
-        query_embedding = None
+        query_embeddings = self.query_extractor(query)
 
-        return global_embed, local_embeds, query_embedding
+        return global_embed, local_embeds, query_embeddings

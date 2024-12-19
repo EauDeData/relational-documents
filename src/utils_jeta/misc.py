@@ -13,12 +13,14 @@ from networks.encoder import DisjointEncoder
 from utils_jeta import constants
 from utils_jeta.auto_load_resume import auto_load_resume
 from data.boe import BOEDataset, MAX_WORDS
+import wandb
 
 class Initializers:
     def __init__(self, args):
         self.args = args
         self.device = None
         self.model = None
+        wandb.init(project='relational_documents', config=args)
 
     def env(self):
         args = self.args
@@ -55,11 +57,11 @@ class Initializers:
                                  num_workers=args.num_workers,
                                  drop_last=False,
                                  collate_fn=collate_fn)
-        testloader = DataLoader(test_set, batch_size=constants.TRAIN_BATCH_SIZE,
+        testloader = DataLoader(test_set, batch_size=constants.TEST_BATCH_SIZE,
                                  shuffle=False,
                                  pin_memory=True,
                                  num_workers=args.num_workers,
-                                 drop_last=False,
+                                 drop_last=True, # Otherwise it can fuck-up acc@{5,10}
                                  collate_fn=collate_fn)
 
         print('Done', flush=True)
@@ -78,7 +80,7 @@ class Initializers:
             logdir = os.path.join(args.checkpoint, args.dataset, 'logdir')
         else:
             logdir = args.logdir
-        model = RelationalProxies(backbone, logdir)
+        model = RelationalProxies(backbone, logdir, logger=wandb)
         print('[INFO] Model: Relational Proxies')
         model.to(device)
         self.model = model

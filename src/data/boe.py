@@ -74,7 +74,7 @@ class BOEDataset(torch.utils.data.Dataset):
         self.documents = []
         for line in tqdm(open(os.path.join(base_jsons, json_split_txt)).readlines()):
             path = os.path.join(base_jsons, line.strip()).replace('jsons_gt', 'graphs_gt')
-            if len(self.documents) > 65: break
+            # if len(self.documents) > 65: break
             # Avoid empty files
             if len(json.load(open(path))['pages']['0']) > 1:
                 self.documents.append(path)
