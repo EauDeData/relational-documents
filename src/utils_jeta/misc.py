@@ -8,7 +8,7 @@ from PIL import Image
 from torch.utils.data import DataLoader
 
 from data.collate import collate_fn
-from models.relational_proxies import RelationalProxies
+from models.relational_proxies import (RelationalProxies, WordCropsOnly, RelationalWordCropsOnly, GLobalReprOnly)
 from networks.encoder import DisjointEncoder
 from utils_jeta import constants
 from utils_jeta.auto_load_resume import auto_load_resume
@@ -20,7 +20,7 @@ class Initializers:
         self.args = args
         self.device = None
         self.model = None
-        wandb.init(project='relational_documents', config=args)
+        wandb.init(name=constants.MODEL_APPROACH, project='relational_documents', config=args)
 
     def env(self):
         args = self.args
@@ -80,7 +80,19 @@ class Initializers:
             logdir = os.path.join(args.checkpoint, args.dataset, 'logdir')
         else:
             logdir = args.logdir
-        model = RelationalProxies(backbone, logdir, logger=wandb)
+
+        # WARNING: If model fails, relational proxies is your safeguard.
+        # Other things are for prototyping
+        if constants.MODEL_APPROACH == 'RELATIONAL_PROXIES':
+            model = RelationalProxies(backbone, logdir, logger=wandb)
+        elif constants.MODEL_APPROACH == 'WORDCROPS_ONLY':
+            model = WordCropsOnly(backbone, logdir, logger=wandb)
+        elif constants.MODEL_APPROACH == 'RELATIONAL_WORDCROPS_ONLY':
+            model = RelationalWordCropsOnly(backbone, logdir, logger=wandb)
+        elif constants.MODEL_APPROACH == 'GLOBAL_ONLY':
+            model = GLobalReprOnly(backbone, logdir, logger=wandb)
+        else:
+            raise NotImplementedError(f'Model {constants.MODEL_APPROACH} not implemented!')
         print('[INFO] Model: Relational Proxies')
         model.to(device)
         self.model = model

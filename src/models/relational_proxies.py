@@ -159,3 +159,32 @@ class RelationalProxies(nn.Module):
         """Post-job actions"""
         self.writer.flush()
         self.writer.close()
+
+class WordCropsOnly(RelationalProxies):
+
+    def compute_reprs(self, image, crops, query):
+        global_embed, local_embeds, query_embedding = self.backbone(image, crops, query)
+        summary_repr = self.aggregator(local_embeds)
+
+        # Substitute relation_repr --> summary_repr
+        return global_embed, summary_repr, summary_repr, query_embedding
+
+class RelationalWordCropsOnly(RelationalProxies):
+
+    def compute_reprs(self, image, crops, query):
+        global_embed, local_embeds, query_embedding = self.backbone(image, crops, query)
+        summary_repr = self.aggregator(local_embeds)
+
+        # Substitute relation_repr --> summary_repr
+        # Self-Aggregation, should only add depth
+        relation_repr = self.relation_net(summary_repr, summary_repr)
+
+        return global_embed, summary_repr, relation_repr, query_embedding
+
+class GLobalReprOnly(RelationalProxies):
+
+    def compute_reprs(self, image, crops, query):
+        global_embed, local_embeds, query_embedding = self.backbone(image, crops, query)
+
+        # Substitute relation_repr --> global_embed
+        return global_embed, None, global_embed, query_embedding

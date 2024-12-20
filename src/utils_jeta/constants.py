@@ -17,7 +17,8 @@ WEIGHT_DECAY = 1e-4
 STRIDE = 32
 FEATURE_DIM = 256
 IMAGE_SIZE = 448
-
+# MODEL_APPROACH = 'RELATIONAL_PROXIES'
+MODEL_APPROACH = 'RELATIONAL_WORDCROPS_ONLY'
 # Path to the global-view extractor model, which also serves as a pretrained backbone for the disjoint encoder.
 # Adopted from MMAL --
 # Paper: https://arxiv.org/pdf/2003.09150.pdf
