@@ -75,14 +75,16 @@ class DisjointEncoder(nn.Module):
             nn.Linear(2048, FEATURE_DIM)
         )
 
-        self.local_extractor = resnet.LatentWordEncoder(final_dim=FEATURE_DIM)
+        self.local_extractor = resnet.resnet50(pretrained=True, pth_path=constants.PRETRAINED_EXTRACTOR_PATH) # resnet.LatentWordEncoder(final_dim=FEATURE_DIM)
 
         self.query_extractor = TransformerSentenceEncoder(6, 4, FEATURE_DIM, vocab_size)
         self.DEVICE = device
 
     def forward(self, global_view, local_views, query):
 
-        local_embeds = self.local_extractor(local_views)
+        batch, seq, _, c, h, w = local_views.shape
+        local_fm, local_embed_pre, _ = self.local_extractor(local_views.view(batch*seq, c, h, w)).view(batch, seq, c, h, w)
+        local_embeds = self.to_low_dim(local_embed_pre)
 
         global_fm, global_embed_pre, _ = self.extractor(global_view.detach())
         global_embed = self.to_low_dim(global_embed_pre)
